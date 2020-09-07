@@ -5,19 +5,9 @@ Created on Sun Sep  6 16:06:51 2020
 @author: 20164798
 """
 
-import os
 import numpy as np
-
-from skimage.io import imsave, imread
 from keras.preprocessing.image import ImageDataGenerator
-from skimage.transform import resize
-
-import matplotlib.pyplot as plt
-import numpy as np
-from skimage.data import gravel
-from skimage.filters import difference_of_gaussians, window
-from scipy.fftpack import fftn, fftshift
-
+from skimage.filters import difference_of_gaussians
 
 image_rows = 420
 image_cols = 580

@@ -6,20 +6,10 @@ Created on Sun Sep  6 12:26:08 2020
 """
 
 from __future__ import print_function
-
-import os
-from skimage.transform import resize
-from skimage.io import imsave
-import numpy as np
 from keras.models import Model
-from keras.layers import Input, concatenate, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, BatchNormalization, Dropout, UpSampling2D
+from keras.layers import Input, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint
 from keras import backend as K
-from sklearn.model_selection import train_test_split
-
-from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
-from tensorflow.keras.layers import LayerNormalization
 
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
