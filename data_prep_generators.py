@@ -12,7 +12,7 @@ import shutil
 from PIL import Image
 
 DATA_PATH = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\complete\train"
-TARGET_PATH = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared - generator"
+TARGET_PATH = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared - test"
     
 all_img = os.listdir(DATA_PATH)
 all_frames = [img for img in all_img if (img.find("mask") == -1) and (img.find(".tif") > -1) ]
@@ -31,25 +31,31 @@ train_masks = [frame[:-4] + "_mask" + frame[-4:] for frame in train_frames]
 val_masks = [frame[:-4] + "_mask" + frame[-4:] for frame in val_frames]
 test_masks = [frame[:-4] + "_mask" + frame[-4:] for frame in test_frames]
 
-def add_frames(dir_name, image):
-  source = DATA_PATH+'/'+image
-  target = TARGET_PATH+'/{}'.format(dir_name)+'/'+image
+def add_frames(source_path, target_path, image):
+  source = source_path+'/'+image
+  target = target_path+'/'+image
   shutil.copyfile(source, target)
   
   
-all_folders = [(train_frames, 'train_frames'), (val_frames, 'val_frames'), 
-                 (test_frames, 'test_frames'), (train_masks, 'train_masks'), (val_masks, 'val_masks'), 
-                (test_masks, 'test_masks')]
+all_folders = [((train_frames, 'train_frames'), (train_masks, 'train_masks'), 'train'), 
+               ((val_frames, 'val_frames'), (val_masks, 'val_masks'), 'val'), 
+               ((test_frames, 'test_frames'), (test_masks, 'test_masks'), 'test')]
 
-for folder in all_folders:
+for subfolder in all_folders:
     
-    if folder[1] not in os.listdir(TARGET_PATH): os.makedirs(TARGET_PATH + '/' + folder[1])
+    if subfolder[2] not in os.listdir(TARGET_PATH): os.makedirs(TARGET_PATH + '/' + subfolder[2])
     
-    array = folder[0]
-    name = [folder[1]] * len(array)
+    for folder in subfolder:
+        if type(folder)==str: continue
+            
+        if folder[1] not in os.listdir(TARGET_PATH + '/' + subfolder[2]): os.makedirs(TARGET_PATH + '/' + subfolder[2] + '/' + folder[1])
 
-    list(map(add_frames, name, array))
-    print(folder[1] + " move completed")
+        array = folder[0]
+        target_path = [TARGET_PATH + '/' + subfolder[2] + '/' + folder[1]] * len(array)
+        source_path = [DATA_PATH] * len(array)
+    
+        list(map(add_frames, source_path, target_path, array))
+        print(folder[1] + " copy completed")
 
 
     
