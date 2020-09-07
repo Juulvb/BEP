@@ -17,28 +17,21 @@ batch_size = 32
 save_path = ""
 nr_epochs = 2
 verbose = 1
-val_split = 0.15
 
-data_created = True
+data_gen_args = dict(rotation_range=0.2,
+                    width_shift_range=0.05,
+                    height_shift_range=0.05,
+                    shear_range=0.05,
+                    zoom_range=0.05,
+                    horizontal_flip=True,
+                    fill_mode='nearest', 
+                    preprocessing_function = band_pass_filter)
 
-
-if not data_created: 
-    create_data_npy(data_path_npy, 'train', 'train')
-    create_data_npy(data_path_npy, 'test - self', 'test (own)')
-    create_data_npy(data_path_npy, 'test - final', 'test (final)', masks_present = False)
-
-
-def data_from_npy():
-    print("preparing data")
-    imgs_train, imgs_mask_train = load_data_npy(data_path_npy, imgs_data_name, masks_data_name, preprocessing=True)
-    print("train model")  
-    model.fit(imgs_train, imgs_mask_train, batch_size=batch_size, epochs=nr_epochs, verbose=verbose, shuffle=True,
-              validation_split=val_split,
-              callbacks=[model_checkpoint])  
+val_gen_args = dict(preprocessing_function = band_pass_filter)
 
 def data_from_generator():
     print("preparing data from generators")
-    trainGene, valGene = load_generators(data_path_generators, preprocessing=True)
+    trainGene, valGene = load_generators(data_path_generators)
     print("train model")  
     no_training_imgs = len(os.listdir(data_path_generators + '/train/train_frames'))
     no_val_imgs = len(os.listdir(data_path_generators + '/val/val_frames'))
@@ -51,3 +44,4 @@ def data_from_generator():
 model = Unet()  
 model_checkpoint = ModelCheckpoint(os.path.join(save_path, model_name + ' - weights.h5'), monitor='val_loss', save_best_only=True)
 data_from_generator()
+
