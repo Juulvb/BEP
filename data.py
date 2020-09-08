@@ -6,7 +6,7 @@ Created on Sun Sep  6 16:06:51 2020
 """
 
 import numpy as np
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from skimage.filters import difference_of_gaussians
 
 image_rows = 420

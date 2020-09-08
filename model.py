@@ -6,10 +6,12 @@ Created on Sun Sep  6 12:26:08 2020
 """
 
 from __future__ import print_function
-from keras.models import Model
-from keras.layers import Input, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D
-from keras.optimizers import Adam
-from keras import backend as K
+
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
@@ -96,6 +98,7 @@ def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, ke
     o = level_block(i, start_ch, kernel_size, depth, inc_rate, activation, normalization, dropout, upconv)
     o = Conv2D(out_ch, (1, 1), activation = 'sigmoid')(o)
     model = Model(inputs=i, outputs=o)
+    
     if compile_model: model.compile(optimizer=Adam(lr=1e-5), loss = dice_coef_loss, metrics=[dice_coef])
     return model
 
