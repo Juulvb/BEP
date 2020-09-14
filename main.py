@@ -9,7 +9,7 @@ from data import load_generators, band_pass_filter
 from model import Unet
 
 import os
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping
 
 from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization
@@ -19,6 +19,7 @@ import shutil
 
 import csv
 import numpy as np
+from time import time
 
 
 data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared k-cross"
@@ -37,8 +38,8 @@ data_gen_args = dict(rotation_range=0.2,
 val_gen_args = dict(preprocessing_function = band_pass_filter)
 
 def train_model(data_path, save_path = "models", model_name = "model", data_gen_args=dict(), val_gen_args = dict(), 
-                batch_size = 32, nr_epochs=2, start_ch = 32, depth = 4, inc_rate = 2, kernel_size = (3, 3), 
-                activation = 'relu', normalization = None, dropout = 0, verbose = 1, train_steps = None, val_steps = None):
+                batch_size = 32, nr_epochs=50, start_ch = 32, depth = 4, inc_rate = 2, kernel_size = (3, 3), learning_rate = 1e-5, 
+                activation = 'relu', normalization = None, dropout = 0, verbose = 1, train_steps = None, val_steps = None, upconv = True):
     
     trainGene, valGene = load_generators(data_path, data_gen_args, val_gen_args)
     
@@ -49,13 +50,14 @@ def train_model(data_path, save_path = "models", model_name = "model", data_gen_
     
     model = Unet(start_ch=start_ch, depth=depth, inc_rate=inc_rate, 
                  kernel_size = kernel_size, activation=activation, 
-                 normalization=normalization, dropout=dropout)  
+                 normalization=normalization, dropout=dropout, learning_rate = learning_rate, upconv = upconv)  
     
     weights_path = os.path.join(save_path, model_name)
     csv_logger = CSVLogger(os.path.join(weights_path + ' log.out'), append=True, separator=';')
+    earlystopping = EarlyStopping(monitor = 'val_loss', verbose = 1, min_delta = 0.01, patience = 3, mode = 'auto', restore_best_weights = True)
     model_checkpoint = ModelCheckpoint(weights_path  + ' - weights.h5', monitor='val_loss', save_best_only=True)
     
-    callbacks_list = [csv_logger, model_checkpoint]
+    callbacks_list = [csv_logger, model_checkpoint, earlystopping]
      
     model.fit(trainGene, steps_per_epoch = train_steps, validation_data = valGene, 
               validation_steps = val_steps, epochs = nr_epochs, callbacks = callbacks_list, verbose = verbose)
@@ -77,6 +79,7 @@ def k_cross_val(data_path, model = None, k = 5):
     
     VALIDATION_DICE = []
     VALIDATION_LOSS = []
+    TIME = []
 
     all_img = os.listdir(os.path.join(data_path, 'train', 'train_frames'))
     if 'val' not in os.listdir(data_path): os.makedirs(data_path + '/val')
@@ -112,26 +115,31 @@ def k_cross_val(data_path, model = None, k = 5):
                     list(map(add_frames, target_path, source_path,  array))
                     os.rmdir(target_path[0])
             if forward == True and model is not None: 
+                start_time = time()
                 results, weights_path, model_name = model()
+                TIME.append(time()-start_time)                               
+                VALIDATION_DICE.append(results['dice_coef'])
+                VALIDATION_LOSS.append(results['loss']) 
+                
                 shutil.move(weights_path + ' - weights.h5', weights_path + ' K_' + str(i) + ' - weights.h5')
                 shutil.move(weights_path + ' log.out', weights_path + ' K_' + str(i) + ' log.out')
-                VALIDATION_DICE.append(results['dice_coef'])
-                VALIDATION_LOSS.append(results['loss'])           
             
             forward = False 
            
     os.rmdir(data_path + '/val')
-    saveresults(model_name, np.mean(VALIDATION_DICE), np.std(VALIDATION_DICE), np.mean(VALIDATION_LOSS), np.std(VALIDATION_LOSS))
+    saveresults(model_name, np.mean(VALIDATION_DICE), np.std(VALIDATION_DICE), 
+                np.mean(VALIDATION_LOSS), np.std(VALIDATION_LOSS),
+                np.mean(TIME), np.std(TIME))
 
-def saveresults(model_name, mean_dice, std_dice, mean_loss, std_loss):
+def saveresults(model_name, mean_dice, std_dice, mean_loss, std_loss, mean_time, std_time):
     files = os.listdir()
     with open('results.csv', 'a', newline="") as file:
         writer = csv.writer(file,  delimiter=';')
-        if 'results.csv' not in files: writer.writerow(["Model_name", "mean_dice_score", "std_dice_score", "mean_loss", "std_loss"])
-        writer.writerow([model_name, mean_dice, std_dice, mean_loss, std_loss])
+        if 'results.csv' not in files: writer.writerow(["Model_name", "mean_dice_score", "std_dice_score", "mean_loss", "std_loss", "mean_time", "std_time"])
+        writer.writerow([model_name, mean_dice, std_dice, mean_loss, std_loss, mean_time, std_time])
         file.close()
     
-def helperfunc(data_path = data_path):
+def restore_dir(data_path = data_path):
     folders = [('val_frames', 'train_frames'), ('val_masks', 'train_masks')]
     
     for folder in folders:
@@ -145,6 +153,6 @@ def helperfunc(data_path = data_path):
                
             
         
-k_cross_val(data_path, lambda: train_model(data_path, train_steps=10, val_steps=5, nr_epochs=2),  k=5)    
+#k_cross_val(data_path, lambda: train_model(data_path, train_steps=10, val_steps=5, nr_epochs=2),  k=5)    
 
 
