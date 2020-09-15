@@ -8,7 +8,11 @@ from main import *
 import random
 
 
-data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared k-cross"
+data_path = r"/home/jpavboxtel/data"
+
+#data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
+imgs = "train - imgs.npy"
+msks = "train - imgs_mask.npy"
 
 #%%grid search
 def grid_search():
@@ -32,26 +36,30 @@ def grid_search():
                                 print("aborted training: " + model_name)
                                 restore_dir()
 #%%
-def random_search(nr_options=100):
+def random_search(nr_options=50):
     options = []
-    for i in range(nr_options):
-        upconv = bool(random.getrandbits(1))
-        ker_size = random.randrange(1, 11, 2)
-        kernel = (ker_size, ker_size)
-        depth = random.randint(1, 5)
-        neurons = 2**random.randint(1, 7)
-        batch_size = 2**random.randint(0, 7)
+    i = 0
+    while i < nr_options:
+        i += 1
+        depth = random.randint(3, 6)
+        batch_size = 2**random.randint(0, 8)
         learning_rate = 1*10**-random.randint(1, 6)
-        model_name = str(int(upconv))+"."+str(kernel[0])+"."+str(depth)+"."+str(neurons)+"."+str(batch_size)+"."+str(learning_rate)
-        option = (model_name, upconv, kernel, depth, neurons, batch_size, learning_rate)               
+        model_name = str(depth)+"."+str(batch_size)+"."+str(learning_rate)
+        option = (model_name, depth, batch_size, learning_rate) 
+        if option in options:
+            print('tis zover')
+            i -= 1
+            continue              
         options.append(option)
 
     for option in options:
-        k_cross_val(data_path, lambda: train_model(data_path, model_name = option[0], train_steps=2, val_steps=1, nr_epochs=1, upconv = option[1], kernel_size = option[2], depth = option[3], start_ch = option[4], batch_size = option[5], learning_rate = option[6]),  k=3) 
+        try:
+            train_model(data_path, imgs, msks, model_name=option[0], depth=option[1], batch_size=option[2], learning_rate = option[3])
+        except:
+            saveresults(model_name, "", "" , "" , "" , "", "")
+    return options
+
+options = random_search()
+#k_cross_val(data_path, lambda: train_model(data_path, model_name = 'test', upconv = True, kernel_size = (3,3), depth = 4, start_ch = 64, batch_size = 64, learning_rate = 0.01),  k=5) 
  
 
-random_search(3)
-'''
-0.7.5.8.8.1e-6
-       
-'''

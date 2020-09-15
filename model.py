@@ -8,7 +8,7 @@ Created on Sun Sep  6 12:26:08 2020
 from __future__ import print_function
 
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D
+from tensorflow.keras.layers import Input, concatenate, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
