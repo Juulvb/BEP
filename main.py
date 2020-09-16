@@ -11,7 +11,7 @@ Created on Sun Sep  6 11:25:09 2020
 @author: 20164798
 """
 
-from data import load_data
+from data import load_data, image_transformation
 from model import Unet
 
 import os
@@ -31,12 +31,18 @@ msks = "train - imgs_mask.npy"
 
 def train_model(data_path, imgs, msks, save_path = "models", model_name = "model",  
                 batch_size = 32, nr_epochs=50, start_ch = 32, depth = 4, inc_rate = 2, kernel_size = (3, 3), learning_rate = 1e-5, 
-                activation = 'relu', normalization = None, dropout = 0, verbose = 1, train_steps = None, val_steps = None, upconv = True, k = 5, small = False):
-    
+                activation = 'relu', normalization = None, dropout = 0, verbose = 1, train_steps = None, val_steps = None, upconv = True, k = 5, small = False, 
+                elastic_deform = False, band_pass_filter = False):
+    print("Load data")
     images, masks = load_data(data_path, imgs, msks)
     if small: 
         images = images[:len(images)//100]
         masks = masks[:len(masks)//100]
+    
+    if elastic_deform or band_pass_filter: 
+        print("Data Augmentation")
+        images, masks = image_transformation(images, masks, elastic_deform, band_pass_filter)
+    
     nro_imgs = len(images)
     VAL_DICE = []
     VAL_LOSS = []
@@ -89,7 +95,7 @@ def saveresults(model_name, mean_dice, std_dice, mean_loss, std_loss, mean_time,
         file.close()
     
           
-#train_model(data_path, imgs, msks, nr_epochs=2, small=True)          
+train_model(data_path, imgs, msks, nr_epochs=2, small=True, elastic_deform = True)          
         
    
 

@@ -10,7 +10,7 @@ import random
 
 data_path = r"/home/jpavboxtel/data"
 
-#data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
+data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
 imgs = "train - imgs.npy"
 msks = "train - imgs_mask.npy"
 
@@ -59,7 +59,7 @@ def random_search(nr_options=50):
             saveresults(model_name, "", "" , "" , "" , "", "")
     return options
 
-options = random_search()
+options = random_search(3)
 #k_cross_val(data_path, lambda: train_model(data_path, model_name = 'test', upconv = True, kernel_size = (3,3), depth = 4, start_ch = 64, batch_size = 64, learning_rate = 0.01),  k=5) 
  
 
