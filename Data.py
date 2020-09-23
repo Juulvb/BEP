@@ -10,9 +10,15 @@ from __future__ import print_function
 import os
 import numpy as np
 import csv
+import random
 
 from skimage.io import imsave, imread
 from skimage.transform import resize
+
+from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.filters import gaussian_filter
+
+from skimage.filters import gaussian
 
 
 image_rows = 420
@@ -145,6 +151,52 @@ def save_results(model_name, dice, time, elab=True):
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
             file.close()
         
+def elastic_transform(image, mask, alpha, sigma, random_state=None):
+    """Elastic deformation of images as described in [Simard2003]_.
+    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
+       Convolutional Neural Networks applied to Visual Document Analysis", in
+       Proc. of the International Conference on Document Analysis and
+       Recognition, 2003.
+    """
+    if random_state is None:
+        random_state = np.random.RandomState(None)
 
+    shape = image.shape
+    dx = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
+    dy = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
+    dz = np.zeros_like(dx)
+
+    x, y, z = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), np.arange(shape[2]))
+    #print(x.shape)
+    indices = np.reshape(y+dy, (-1, 1)), np.reshape(x+dx, (-1, 1)), np.reshape(z, (-1, 1))
+
+    distored_image = map_coordinates(image, indices, order=1, mode='reflect')
+    distored_mask = map_coordinates(mask, indices, order=1, mode='reflect')
+    return distored_image.reshape(image.shape), distored_mask.reshape(mask.shape)
+
+def image_transformation(images, masks, elastic_deform = None, low_pass = None, high_pass = None):
+    im_tr = []
+    msk_tr = []
+    for i in range(len(images)):
+        image = images[i]
+        mask = masks[i]
+        
+        if low_pass is not None: 
+            image = gaussian(image, low_pass)
+            mask = gaussian(mask, low_pass)
+        
+        if high_pass is not None: 
+            image = image - gaussian(image, high_pass)
+            mask = mask - gaussian(mask, high_pass)
+        
+        if elastic_deform is not None:
+            alpha = random.uniform(1, elastic_deform[0])
+            sigma = random.uniform(elastic_deform[1], 1)
+            image, mask= elastic_transform(image, mask, image.shape[1]*alpha, image.shape[1]*sigma)
+            
+        im_tr.append(image)
+        msk_tr.append(mask)
+        
+    return im_tr, msk_tr
         
 
