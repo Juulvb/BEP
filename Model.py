@@ -86,7 +86,7 @@ def level_block(m, dim, shape, depth, inc, acti, norm, do, up):
     
     return m
 
-def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0.2, upconv = False, compile_model =True, learning_rate = 1e-5):
+def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, upconv = False, compile_model =True, learning_rate = 1e-5):
     i = Input(shape=img_shape)
     o = level_block(i, start_ch, kernel_size, depth, inc_rate, activation, normalization, dropout, upconv)
     o = Conv2D(out_ch, (1, 1), activation = 'sigmoid')(o)

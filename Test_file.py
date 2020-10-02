@@ -19,23 +19,13 @@ import os
 
 
 data_path = r"/home/jpavboxtel/data"
-save_path = r"/home/jpavboxtel/code/models_exp2"
+save_path = r"/home/jpavboxtel/code/models_exp3"
 
 if not os.path.exists(save_path): os.mkdir(save_path)
 #%%
 #data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
 imgs = "train - imgs.npy"
 msks = "train - imgs_mask.npy"
-
-
-exp1 = [("depth", (2, 6)), ("batch_size", (0, 8)), ("learning_rate", (1, 6))]
-exp1_func = [lambda a,b: random.randint(a, b), lambda a,b: 2**random.randint(a, b), lambda a,b: 10**-random.randint(a, b)]
-
-exp2a = [("depth", list(range(4, 6))), ("batch_size", [2**elem for elem in list(range(0, 7))]), ("learning_rate", [10**-elem for elem in list(range(5, 8))]) ]
-exp2b = [("depth", list(range(2, 4))), ("batch_size", [2**elem for elem in list(range(2, 7))]), ("learning_rate", [10**-elem for elem in list(range(4, 8))]) ]
-
-exp3a = [("depth", 2), ("batch_size", 64), ("learning_rate", 0.0001), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-exp3b = [("depth", 5), ("batch_size", 64), ("learning_rate", 1e-5), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
 
 #%%
 def random_search(exp_name, exp_list, func_list, nr_options=50, prev_results = False, res_file = ""):
@@ -73,9 +63,15 @@ def read_results(exp_name, exp_list, res_file):
         arg_dict = {}
         split_result = result.split("_")
         if exp_name == split_result[0]:
-            split_result = split_result[1].split(".", len(exp_list)-1)
-            for i in range(len(split_result)):
-                arg_dict[exp_list[i][0]] = float(split_result[i]) if i < len(split_result)-1 else float(split_result[i][:-1])
+            split_result = split_result[1].split(".")
+            split_result.remove('')
+            i = 0
+            while i < len(split_result):
+                if split_result[i][-1] == '0' and i < len(split_result)-1 and split_result[i+1][0].isdigit(): 
+                    split_result[i:i+2] = ['.'.join(split_result[i:i+2])]
+                    i -= 1
+                arg_dict[exp_list[i][0]] = eval(str(split_result[i]))
+                i += 1    
             arg_dict['model_name'] = result
             options.append(arg_dict)
     return options
@@ -93,7 +89,7 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
             model_name += str(items[i]) + "."
         arg_dict['model_name'] = exp_name + '_' + model_name   
         if not arg_dict in options:             
-            options.append(arg_dict)  
+            options.append(arg_dict)
             try:
                 print(f"start training model {len(options)} out of {nr_options}") 
                 print(arg_dict)
@@ -104,15 +100,44 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
         else: 
             print(f"{arg_dict} is already trained")
 
-
   
 
 #%%
-#random_search('exp1', exp1, exp1_func, nr_options = 5)#, prev_results=True, res_file="results.csv")
+# exp1 = [("depth", (2, 6)), ("batch_size", (0, 8)), ("learning_rate", (1, 6))]
+# exp1_func = [lambda a,b: random.randint(a, b), lambda a,b: 2**random.randint(a, b), lambda a,b: 10**-random.randint(a, b)]
+# random_search('exp1', exp1, exp1_func, nr_options = 5)#, prev_results=True, res_file="results.csv")
 
-grid_search('exp2', exp2a, prev_results=True, res_file="results.csv")
-#grid_search('exp2', exp2b, prev_results=True, res_file="results.csv")
+# exp2a = [("depth", list(range(4, 6))), ("batch_size", [2**elem for elem in list(range(0, 7))]), ("learning_rate", [10**-elem for elem in list(range(5, 8))]) ]
+# exp2b = [("depth", list(range(2, 4))), ("batch_size", [2**elem for elem in list(range(2, 7))]), ("learning_rate", [10**-elem for elem in list(range(4, 8))]) ]
+# grid_search('exp2', exp2a, prev_results=True, res_file="results.csv")
+# grid_search('exp2', exp2b, prev_results=True, res_file="results.csv")
 
-#grid_search('exp3', exp3a, prev_results=True, res_file="results.csv")
+# exp3a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3), (5, 5), (7, 7)]), ("start_ch", [16, 32, 64])]
+# exp3b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(3, 3), (5, 5), (7, 7)]), ("start_ch", [16, 32, 64])]
+# grid_search('exp3', exp3a, prev_results=True, res_file="results.csv")
+# grid_search('exp3', exp3b)
+
+# exp4a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# exp4b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# grid_search("exp4", exp4a, prev_results=True, res_file="results.csv")
+# grid_search("exp4", exp4b, prev_results=True, res_file="results.csv")
+
+
+# exp5a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# exp5b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# grid_search("exp5", exp5a, prev_results=True, res_file="results.csv")
+# grid_search("exp5", exp5b, prev_results=True, res_file="results.csv")
+
+# exp6a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3)]), ("start_ch", [64]), ('dropout', [0, 0.2, 0.4])]
+# exp6b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ('dropout', [0, 0.2, 0.4])]
+# grid_search("exp6", exp6a, prev_results=True, res_file="results.csv")
+# grid_search("exp6", exp6b, prev_results=True, res_file="results.csv")
+
+exp7a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+exp7b = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+grid_search("exp7", exp7a, prev_results=True, res_file="results.csv")
+grid_search("exp7", exp7b, prev_results=True, res_file="results.csv")
+
+
 
 

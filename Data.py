@@ -18,7 +18,7 @@ from skimage.transform import resize
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 
-from skimage.filters import gaussian
+from skimage.filters import gaussian, prewitt
 
 
 image_rows = 420
@@ -174,7 +174,7 @@ def elastic_transform(image, mask, alpha, sigma, random_state=None):
     distored_mask = map_coordinates(mask, indices, order=1, mode='reflect')
     return distored_image.reshape(image.shape), distored_mask.reshape(mask.shape)
 
-def image_transformation(images, masks, elastic_deform = None, low_pass = None, high_pass = None):
+def image_transformation(images, masks, elastic_deform = None, low_pass = None, high_pass = None, prwt = False):
     im_tr = []
     msk_tr = []
     for i in range(len(images)):
@@ -185,9 +185,12 @@ def image_transformation(images, masks, elastic_deform = None, low_pass = None, 
             image = gaussian(image, low_pass)
             mask = gaussian(mask, low_pass)
         
-        if high_pass is not None: 
+        if high_pass is not None and not prewitt : 
             image = image - gaussian(image, high_pass)
             mask = mask - gaussian(mask, high_pass)
+        
+        if prwt:
+            image = prewitt(image)
         
         if elastic_deform is not None:
             alpha = random.uniform(1, elastic_deform[0])
@@ -197,6 +200,6 @@ def image_transformation(images, masks, elastic_deform = None, low_pass = None, 
         im_tr.append(image)
         msk_tr.append(mask)
         
-    return im_tr, msk_tr
+    return np.array(im_tr), np.array(msk_tr)
         
 
