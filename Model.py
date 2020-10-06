@@ -6,6 +6,8 @@ from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras import backend as K
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
+from tensorflow_addons.layers import GroupNormalization
+
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
 ######################### define variables ##################################
@@ -61,10 +63,10 @@ def dice_coef_loss(y_true, y_pred):
 
 def conv_block(m, dim, shape, acti, norm, do=0):
     n = Conv2D(dim, shape, activation=acti, padding='same')(m)
-    n = norm()(n) if norm else n
+    n = norm()(n) if norm and type(norm) != tuple else norm[0](norm[1])(n) if type(norm) == tuple else n
     n = Dropout(do)(n) if do else n
     n = Conv2D(dim, shape, activation=acti, padding='same')(n)
-    n = norm()(n) if norm else n
+    n = norm()(n) if norm and type(norm) != tuple else norm[0](norm[1])(n) if type(norm) == tuple else n
     return n
 
 def level_block(m, dim, shape, depth, inc, acti, norm, do, up):

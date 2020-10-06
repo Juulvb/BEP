@@ -12,20 +12,28 @@ Created on Thu Sep 10 08:42:34 2020
 """
 from Main import train_model
 from Data import save_results
+from Final_test import test_model
 from itertools import product
 import random
 import pandas as pd
 import os
 
+from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
+from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 
-data_path = r"/home/jpavboxtel/data"
-save_path = r"/home/jpavboxtel/code/models_exp3"
 
-if not os.path.exists(save_path): os.mkdir(save_path)
-#%%
-#data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
+# data_path = r"/home/jpavboxtel/data"
+# save_path = r"/home/jpavboxtel/code/models_exp8"
+
+# if not os.path.exists(save_path): os.mkdir(save_path)
 imgs = "train - imgs.npy"
 msks = "train - imgs_mask.npy"
+
+#%%
+data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
+save_path = "results"
+imgs = "test (own) - imgs.npy"
+msks = "test (own) - imgs_mask.npy"
 
 #%%
 def random_search(exp_name, exp_list, func_list, nr_options=50, prev_results = False, res_file = ""):
@@ -46,7 +54,6 @@ def random_search(exp_name, exp_list, func_list, nr_options=50, prev_results = F
             i -= 1
             continue              
         options.append(arg_dict)
-        train_model(data_path, imgs, msks, save_path = save_path, **arg_dict)
         try:
             print(f"start training model {i} out of {nr_options}") 
             print(arg_dict)
@@ -85,15 +92,16 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
         arg_dict = {}
         model_name = ""
         for i in range(len(items)):
-            arg_dict[exp_list[i][0]] = items[i]
+            arg_dict[exp_list[i][0]] = eval(str(items[i]))
             model_name += str(items[i]) + "."
         arg_dict['model_name'] = exp_name + '_' + model_name   
         if not arg_dict in options:             
             options.append(arg_dict)
+            train_model(data_path, imgs, msks, save_path = save_path, **arg_dict)
             try:
                 print(f"start training model {len(options)} out of {nr_options}") 
                 print(arg_dict)
-                train_model(data_path, imgs, msks, save_path = save_path, **arg_dict)
+
             except:
                 print("saving model failed")
                 save_results(model_name, 0, 0, elab=False)
@@ -117,27 +125,40 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
 # grid_search('exp3', exp3a, prev_results=True, res_file="results.csv")
 # grid_search('exp3', exp3b)
 
+# exp6a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3)]), ("start_ch", [64]), ('dropout', [0, 0.2, 0.4])]
+# exp6a = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ('dropout', [0, 0.2, 0.4])]
+# grid_search("exp6", exp6a, prev_results=True, res_file="results.csv")
+# grid_search("exp6", exp6b, prev_results=True, res_file="results.csv")
+
+test_model("all data - 4", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy")
+test_model("patient - 4", "patient - imgs.npy", "patient - imgs_mask.npy", "patient test - imgs.npy", "patient test - imgs_mask.npy"   )
+test_model("True - 4", "true - imgs.npy", "true - imgs_mask.npy", "true test - imgs.npy", "true test - imgs_mask.npy")
+
 # exp4a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
 # exp4b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
 # grid_search("exp4", exp4a, prev_results=True, res_file="results.csv")
 # grid_search("exp4", exp4b, prev_results=True, res_file="results.csv")
 
-
 # exp5a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# exp5b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# exp5b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
 # grid_search("exp5", exp5a, prev_results=True, res_file="results.csv")
 # grid_search("exp5", exp5b, prev_results=True, res_file="results.csv")
 
-# exp6a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3)]), ("start_ch", [64]), ('dropout', [0, 0.2, 0.4])]
-# exp6b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ('dropout', [0, 0.2, 0.4])]
-# grid_search("exp6", exp6a, prev_results=True, res_file="results.csv")
-# grid_search("exp6", exp6b, prev_results=True, res_file="results.csv")
+# exp7a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# exp7b = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+# grid_search("exp7", exp7a, prev_results=True, res_file="results.csv")
+# grid_search("exp7", exp7b, prev_results=True, res_file="results.csv")
 
-exp7a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-exp7b = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-grid_search("exp7", exp7a, prev_results=True, res_file="results.csv")
-grid_search("exp7", exp7b, prev_results=True, res_file="results.csv")
+exp8a = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+exp8b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+grid_search("exp8", exp8a, prev_results=True, res_file="results.csv")
+grid_search("exp8", exp8b, prev_results=True, res_file="results.csv")
+
+#%%
+exp9 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("prwt", [False]), ("elastic_deform", [None]), ("normalization", ["(GroupNormalization, 8)", "(GroupNormalization, 16)", "LayerNormalization", "InstanceNormalization", "BatchNormalization"])]
+grid_search("exp9", exp9, prev_results=True, res_file="results.csv")
 
 
+#test_model("all data - elastic deform (4, 0.1)", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy", elastic_deform = (4, 0.1))
 
 

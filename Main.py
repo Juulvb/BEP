@@ -22,6 +22,7 @@ data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepa
 imgs = "train - imgs.npy"
 msks = "train - imgs_mask.npy"
 
+
 def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, upconv=False, nr_epochs=50, verbosity=1, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False):
     print('-'*30)
     print('Loading and preprocessing train data...')
@@ -29,7 +30,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", s
     
     images, masks = load_data(data_path, imgs, msks)
     
-    if elastic_deform is not None or low_pass is not None or high_pass is not None or not prwt: 
+    if elastic_deform is not None or low_pass is not None or high_pass is not None or prwt: 
         print('-'*30)
         print("Data Augmentation")
         print('-'*30)
@@ -52,7 +53,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", s
         model = Unet(start_ch=start_ch, depth=depth, inc_rate=inc_rate, 
                       kernel_size = kernel_size, activation=activation, 
                       normalization=normalization, dropout=dropout, learning_rate = learning_rate, upconv = upconv)
-        
+
         save_dir = save_path + '/' + model_name + " K_" + str(fold_no)
         model_checkpoint = ModelCheckpoint(save_dir + ' weights.h5', monitor='val_loss', save_best_only=True)
         csv_logger = CSVLogger(os.path.join(save_dir + ' log.out'), append=True, separator=';')
@@ -75,7 +76,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", s
     save_results(model_name, dice_per_fold, time_per_fold, False) 
     
 if __name__ == '__main__':
-    train_model(elastic_deform=(8, 0.05))
+    train_model()
     
     
     

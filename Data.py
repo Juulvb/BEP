@@ -12,7 +12,7 @@ import numpy as np
 import csv
 import random
 
-from skimage.io import imsave, imread
+from skimage.io import imread
 from skimage.transform import resize
 
 from scipy.ndimage.interpolation import map_coordinates
@@ -136,16 +136,16 @@ def load_data(data_path, imgs, msks):
     return imgs_train, imgs_mask_train
 
 
-def save_results(model_name, dice, time, elab=True):
+def save_results(model_name, dice, time, elab=True, file = 'results.csv', file_elab = 'results elaborate.csv'):
     files = os.listdir()
     if elab:
-        with open('results elaborate.csv', 'a', newline="") as file:
+        with open(file_elab, 'a', newline="") as file:
             writer = csv.writer(file, delimiter=';')
             if 'results.csv' not in files: writer.writerow(["Model_name", "Dice_score", "Time"])
             writer.writerow([model_name, dice, time])
             file.close()
     else:
-        with open('results.csv', 'a', newline="") as file:
+        with open(file, 'a', newline="") as file:
             writer = csv.writer(file,  delimiter=';')
             if 'results.csv' not in files: writer.writerow(["Model_name", "mean_dice_score", "std_dice_score", "mean_time", "std_time"])
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
@@ -164,7 +164,6 @@ def elastic_transform(image, mask, alpha, sigma, random_state=None):
     shape = image.shape
     dx = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
     dy = gaussian_filter((random_state.rand(*shape) * 2 - 1), sigma, mode="constant", cval=0) * alpha
-    dz = np.zeros_like(dx)
 
     x, y, z = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), np.arange(shape[2]))
     #print(x.shape)
