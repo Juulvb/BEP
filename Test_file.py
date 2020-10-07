@@ -130,9 +130,9 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
 # grid_search("exp6", exp6a, prev_results=True, res_file="results.csv")
 # grid_search("exp6", exp6b, prev_results=True, res_file="results.csv")
 
-test_model("all data - 4", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy")
-test_model("patient - 4", "patient - imgs.npy", "patient - imgs_mask.npy", "patient test - imgs.npy", "patient test - imgs_mask.npy"   )
-test_model("True - 4", "true - imgs.npy", "true - imgs_mask.npy", "true test - imgs.npy", "true test - imgs_mask.npy")
+#test_model("all data - 4", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy")
+#test_model("patient - 4", "patient - imgs.npy", "patient - imgs_mask.npy", "patient test - imgs.npy", "patient test - imgs_mask.npy"   )
+test_model("True - 4", "True - imgs.npy", "True - imgs_mask.npy", "True test - imgs.npy", "True test - imgs_mask.npy")
 
 # exp4a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
 # exp4b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
@@ -155,9 +155,11 @@ grid_search("exp8", exp8a, prev_results=True, res_file="results.csv")
 grid_search("exp8", exp8b, prev_results=True, res_file="results.csv")
 
 #%%
-exp9 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("prwt", [False]), ("elastic_deform", [None]), ("normalization", ["(GroupNormalization, 8)", "(GroupNormalization, 16)", "LayerNormalization", "InstanceNormalization", "BatchNormalization"])]
-grid_search("exp9", exp9, prev_results=True, res_file="results.csv")
+# exp9 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("prwt", [False]), ("elastic_deform", [None]), ("normalization", ["(GroupNormalization, 8)", "(GroupNormalization, 16)", "LayerNormalization", "InstanceNormalization", "BatchNormalization"])]
+# grid_search("exp9", exp9, prev_results=True, res_file="results.csv")
 
+# exp10 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-4]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("prwt", [False]), ("elastic_deform", [None]), ("normalization", ["(GroupNormalization, 16)"]), ("lr_decay", [True])]
+# grid_search("exp10", exp10, prev_results=True, res_file="results.csv")
 
 #test_model("all data - elastic deform (4, 0.1)", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy", elastic_deform = (4, 0.1))
 

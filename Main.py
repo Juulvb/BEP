@@ -2,7 +2,7 @@ from __future__ import print_function
 
 import os
 
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from tensorflow.keras import backend as K
 from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization
@@ -13,17 +13,17 @@ from time import time
 
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
-from Model import Unet
+from Model import Unet, schedule
 
 
 data_path = r"/home/jpavboxtel/data"
 
 data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
-imgs = "train - imgs.npy"
-msks = "train - imgs_mask.npy"
+imgs = "test (own) - imgs.npy"
+msks = "test (own) - imgs_mask.npy"
 
 
-def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, upconv=False, nr_epochs=50, verbosity=1, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False):
+def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, upconv=False, nr_epochs=50, verbosity=1, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False):
     print('-'*30)
     print('Loading and preprocessing train data...')
     print('-'*30)
@@ -61,8 +61,13 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, model_name="model", s
         
         callbacks_list = [csv_logger, model_checkpoint, earlystopping]
         
+        if lr_decay:
+            lr_schedule = LearningRateScheduler(schedule)
+            callbacks_list.append(lr_schedule)
+        
         start_time = time()
         model.fit(train_im, train_msk, validation_data = (images[val], masks[val]), batch_size=batch_size, epochs=nr_epochs, verbose=verbosity, shuffle=True, callbacks=callbacks_list)
+        print(round(model.optimizer.lr.numpy(), 5))
         train_time = int(time()-start_time)
         
         scores = model.evaluate(images[val], masks[val], verbose=0)

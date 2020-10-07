@@ -14,13 +14,12 @@ from time import time
 data_path = r"/home/jpavboxtel/data"
 save_path = r"/home/jpavboxtel/code/final_models"
 
-
 def test_model(exp_name, imgs, msks, test_imgs, test_msks, elastic_deform = None, data_path = r"/home/jpavboxtel/data", save_path = r"/home/jpavboxtel/code/final_models"):
     print("load test_images")
     test_images, test_masks = load_data(data_path, test_imgs, test_msks)
     print("load train_images")
     images, masks = load_data(data_path, imgs, msks)
-    
+
     if elastic_deform is not None: 
         print('-'*30)
         print("Data Augmentation")
@@ -30,7 +29,7 @@ def test_model(exp_name, imgs, msks, test_imgs, test_msks, elastic_deform = None
     dice_list = []
     time_list = []
     for i in range(10):
-        print(f"train model run {i}/10")
+        print(f"train model run {i}/10 of test: {exp_name}")
         model = Unet(start_ch=32, depth=4, inc_rate=2, kernel_size = (5,5), activation='relu', normalization = None, dropout = 0.4,learning_rate = 1e-5, upconv = False)
         
         save_dir = f"{save_path}/{exp_name} N_{i}"
@@ -50,4 +49,7 @@ def test_model(exp_name, imgs, msks, test_imgs, test_msks, elastic_deform = None
     
     save_results(exp_name, dice_list, time_list, False, file = "test results.csv")
 
-     
+# images = np.load(os.path.join(data_path, "test (own) - imgs.npy"))
+# masks = np.load(os.path.join(data_path, "test (own) - imgs_mask.npy"))
+#img, msk, tstimg, tstmsk = test_model("True - 4", "True - imgs.npy", "True - imgs_mask.npy", "True test - imgs.npy", "True test - imgs_mask.npy", data_path=data_path, save_path=save_path)
+ 
