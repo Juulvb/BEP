@@ -13,7 +13,7 @@ import csv
 import random
 
 from skimage.io import imread
-from skimage.transform import resize
+from skimage.transform import resize, downscale_local_mean
 
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
@@ -136,21 +136,33 @@ def load_data(data_path, imgs, msks):
     return imgs_train, imgs_mask_train
 
 
-def save_results(model_name, dice, time, elab=True, file = 'results.csv', file_elab = 'results elaborate.csv'):
+def save_results(model_name, dice, time, elab=True, file_total = 'results.csv', file_elab = 'results elaborate.csv'):
     files = os.listdir()
     if elab:
         with open(file_elab, 'a', newline="") as file:
             writer = csv.writer(file, delimiter=';')
-            if 'results.csv' not in files: writer.writerow(["Model_name", "Dice_score", "Time"])
+            if file_elab not in files: writer.writerow(["Model_name", "Dice_score", "Time"])
             writer.writerow([model_name, dice, time])
             file.close()
     else:
-        with open(file, 'a', newline="") as file:
+        with open(file_total, 'a', newline="") as file:
             writer = csv.writer(file,  delimiter=';')
-            if 'results.csv' not in files: writer.writerow(["Model_name", "mean_dice_score", "std_dice_score", "mean_time", "std_time"])
+            if file_total not in files: writer.writerow(["Model_name", "mean_dice_score", "std_dice_score", "mean_time", "std_time"])
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
             file.close()
-        
+
+def downsample_image(images, n):
+    l = {}
+    l["o1"] = images
+    for i in range(n):
+        factor = 2**(i+1)
+        arr = np.empty((len(images), images.shape[1], images.shape[2], images.shape[3]))
+        for j in range(len(images)):
+            ds = downscale_local_mean(images[j], (factor, factor, 1))
+            arr[j] = resize(ds, (img_cols, img_rows, 1), preserve_range=True)
+        l[f"o{i+2}"] = arr
+    return l
+                
 def elastic_transform(image, mask, alpha, sigma, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_.
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
@@ -201,4 +213,7 @@ def image_transformation(images, masks, elastic_deform = None, low_pass = None, 
         
     return np.array(im_tr), np.array(msk_tr)
         
-
+def print_func(str_in, n=50):
+    print('-'*n)
+    print(str_in)
+    print('-'*n)
