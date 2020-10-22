@@ -11,8 +11,8 @@ Created on Thu Sep 10 08:42:34 2020
 @author: 20164798
 """
 from Main import train_model
-from Data import save_results
-from Final_test import test_model
+from Data import save_results, print_func
+from Model import Unet, Mnet
 from itertools import product
 import random
 import pandas as pd
@@ -23,47 +23,26 @@ from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 
 
 data_path = r"/home/jpavboxtel/data"
-save_path = r"/home/jpavboxtel/code/models_exp8"
-
+save_path = r"/home/jpavboxtel/code/models_Mnet"
 if not os.path.exists(save_path): os.mkdir(save_path)
+
 imgs = "train - imgs.npy"
 msks = "train - imgs_mask.npy"
 
 #%%
-#data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
-#save_path = "results"
-# imgs = "test (own) - imgs.npy"
-# msks = "test (own) - imgs_mask.npy"
-
-#%%
-def random_search(exp_name, exp_list, func_list, nr_options=50, prev_results = False, res_file = ""):
-    options = [] if not prev_results else read_results(exp_name, exp_list, res_file)
-    i = len(options)
-    while i < nr_options:
-        i += 1
-        
-        arg_dict = {}
-        model_name = ""
-        for j in range(len(exp_list)):
-            var = exp_list[j]
-            val = func_list[j](*var[1])
-            model_name += str(val) + "."
-            arg_dict[var[0]] = val
-        arg_dict['model_name'] = exp_name + '_' + model_name
-        if arg_dict in options:
-            i -= 1
-            continue              
-        options.append(arg_dict)
-        try:
-            print(f"start training model {i} out of {nr_options}") 
-            print(arg_dict)
-            train_model(data_path, imgs, msks, save_path = save_path, **arg_dict)
-        except:
-            print("saving model failed")
-            save_results(model_name, 0, 0, elab=False)
-            i -= 1
-    
 def read_results(exp_name, exp_list, res_file):
+    """
+    DESCRIPTION: Function to read previous produced results in order to prevent doing experiments double
+    ----------
+    INPUTS:
+    exp_name:   string, the name to identify the experiment by
+    exp_list:   list of tuples, first element of each tuple should be a string of the variable name, the second element the parameters to pass to the function given in func_list
+    res_file:   string, filepath and name of file containing the previous results
+    -------
+    OUTPUTS:
+    options:    a list of dictionaries containing the sets of parameters that have already been tested
+    """
+    
     results = pd.read_csv(res_file, sep=';')
     options = []
     for result in results['Model_name']:
@@ -83,8 +62,71 @@ def read_results(exp_name, exp_list, res_file):
             options.append(arg_dict)
     return options
 
+def random_search(exp_name, exp_list, func_list, nr_options=50, fail_factor = 3, prev_results = False, res_file = ""):
+    """
+    DESCRIPTION: Function to execute a random search among the given parameters
+    ----------
+    INPUTS:
+    exp_name:       string, the name to identify the experiment by
+    exp_list:       list of tuples, first element of each tuple should be a string of the variable name, the second element the parameters to pass to the function given in func_list
+    func_list:      list of (lambda) functions, each element should contain a function corresponding the variable in exp_list at equal index
+    nr_options:     int, number of options to train the model for
+    fail_factor:    int, prevents an infinite while loop with failing models by limiting the maximal attempts to fail_factor*nr_options
+    prev_results:   boolean, whether or not previous results are present in a csv file
+    res_file:       string, filepath and name of file containing the previous results
+    -------
+    OUTPUTS:
+    A .h5 file per fold per set of parameters containing the model with its trained weights
+    A .out file per fold per set of parameters containing the log of the training process in CSV format
+    A .csv file where each row contains the DSC and train time per fold per set of parameters of the model, if there is already a file present the results are appended
+    A .csv file where each row contains the mean and standard deviation of the DSCs and times of all folds per set of parameters of a model, if there is already a file present the results are appended
+    """
+    
+    options = [] if not prev_results else read_results(exp_name, exp_list, res_file)
+    i,j = len(options), len(options)
+    while i < nr_options and j < nr_options*fail_factor:
+        i += 1
+        j += 1
+        
+        arg_dict = {}
+        model_name = ""
+        for j in range(len(exp_list)):
+            var = exp_list[j]
+            val = func_list[j](*var[1])
+            model_name += str(val) + "."
+            arg_dict[var[0]] = val
+        if 'model_name' not in arg_dict: arg_dict['model_name'] = exp_name + '_' + model_name
+        if arg_dict in options:
+            i -= 1
+            continue              
+        options.append(arg_dict)
+        if "imgs" not in arg_dict: arg_dict["imgs"] = imgs
+        if "msks" not in arg_dict: arg_dict["msks"] = msks
+        try:
+            print_func(f"start training model {i} out of {nr_options} \n{arg_dict}") 
+            train_model(data_path, save_path = save_path, **arg_dict)
+        except:
+            print_func("saving model failed")
+            save_results(model_name, 0, 0, elab=False)
+            i -= 1
 
 def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
+    """
+    DESCRIPTION: Function execute a grid search among the given parameters
+    ----------
+    INPUTS:
+    exp_name:       string, the name to identify the experiment by
+    exp_list:       list of tuples, first element of each tuple should be a string of the variable name, the second element should be a list of the options to pass for the variable
+    prev_results:   boolean, whether or not previous results are present in a csv file
+    res_file:       string, filepath and name of file containing the previous results
+    -------
+    OUTPUTS:
+    A .h5 file per fold per set of parameters containing the model with its trained weights
+    A .out file per fold per set of parameters containing the log of the training process in CSV format
+    A .csv file where each row contains the DSC and train time per fold per set of parameters of the model, if there is already a file present the results are appended
+    A .csv file where each row contains the mean and standard deviation of the DSCs and times of all folds per set of parameters of a model, if there is already a file present the results are appended
+    """
+    
     options = [] if not prev_results else read_results(exp_name, exp_list, res_file)
     var = [var[1] for var in exp_list]
     nr_options = len(list(product(*var)))
@@ -100,72 +142,26 @@ def grid_search(exp_name, exp_list, prev_results = False, res_file = ""):
             if "imgs" not in arg_dict: arg_dict["imgs"] = imgs
             if "msks" not in arg_dict: arg_dict["msks"] = msks
             try:
-                print(f"start training model {len(options)} out of {nr_options}") 
-                print(arg_dict)
+                print_func(f"start training model {i} out of {nr_options} \n{arg_dict}")
                 train_model(data_path, save_path = save_path, **arg_dict)
             except:
-                print("saving model failed")
+                print_func("saving model failed")
                 save_results(model_name, 0, 0, elab=False)
         else: 
-            print(f"{arg_dict} is already trained")
+            print_func(f"{arg_dict} is already trained")
 
   
 
 #%%
-# exp1 = [("depth", (2, 6)), ("batch_size", (0, 8)), ("learning_rate", (1, 6))]
-# exp1_func = [lambda a,b: random.randint(a, b), lambda a,b: 2**random.randint(a, b), lambda a,b: 10**-random.randint(a, b)]
-# random_search('exp1', exp1, exp1_func, nr_options = 5)#, prev_results=True, res_file="results.csv")
+##### example 1: random search for hyperparameters on U-net#####
+exp1 = [("depth", (2, 6)), ("batch_size", (0, 8)), ("learning_rate", (1, 6))]
+exp1_func = [lambda a,b: random.randint(a, b), lambda a,b: 2**random.randint(a, b), lambda a,b: 10**-random.randint(a, b)]
+random_search("exp1", exp1, exp1_func, nr_options = 5)#, prev_results=True, res_file="results.csv")
 
-# exp2a = [("depth", list(range(4, 6))), ("batch_size", [2**elem for elem in list(range(0, 7))]), ("learning_rate", [10**-elem for elem in list(range(5, 8))]) ]
-# exp2b = [("depth", list(range(2, 4))), ("batch_size", [2**elem for elem in list(range(2, 7))]), ("learning_rate", [10**-elem for elem in list(range(4, 8))]) ]
-# grid_search('exp2', exp2a, prev_results=True, res_file="results.csv")
-# grid_search('exp2', exp2b, prev_results=True, res_file="results.csv")
+##### example 2: grid search for image pre-processing techniques on U-net #####
+exp2 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
+grid_search("exp2", exp2, prev_results=True, res_file="results.csv")
 
-# exp3a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3), (5, 5), (7, 7)]), ("start_ch", [16, 32, 64])]
-# exp3b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(3, 3), (5, 5), (7, 7)]), ("start_ch", [16, 32, 64])]
-# grid_search('exp3', exp3a, prev_results=True, res_file="results.csv")
-# grid_search('exp3', exp3b)
-
-# exp6a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [(3, 3)]), ("start_ch", [64]), ('dropout', [0, 0.2, 0.4])]
-# exp6a = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ('dropout', [0, 0.2, 0.4])]
-# grid_search("exp6", exp6a, prev_results=True, res_file="results.csv")
-# grid_search("exp6", exp6b, prev_results=True, res_file="results.csv")
-
-#test_model("all data - 4", "train - imgs.npy", "train - imgs_mask.npy", "test (own) - imgs.npy", "test (own) - imgs_mask.npy")
-#test_model("patient - 4", "patient - imgs.npy", "patient - imgs_mask.npy", "patient test - imgs.npy", "patient test - imgs_mask.npy"   )
-#test_model("True - 4", "True - imgs.npy", "True - imgs_mask.npy", "True test - imgs.npy", "True test - imgs_mask.npy")
-
-# exp4a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# exp4b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# grid_search("exp4", exp4a, prev_results=True, res_file="results.csv")
-# grid_search("exp4", exp4b, prev_results=True, res_file="results.csv")
-
-# exp5a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# exp5b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5), ("kernel_size", [5]), ("start_ch", [32]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# grid_search("exp5", exp5a, prev_results=True, res_file="results.csv")
-# grid_search("exp5", exp5b, prev_results=True, res_file="results.csv")
-
-# exp7a = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# exp7b = [("depth", [2]), ("batch_size", [64]), ("learning_rate", [0.0001]), ("kernel_size", [3]), ("start_ch", [64]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# grid_search("exp7", exp7a, prev_results=True, res_file="results.csv")
-# grid_search("exp7", exp7b, prev_results=True, res_file="results.csv")
-
-# exp8a = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5, 1]), ("prwt", [False, True]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# exp8b = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5, 1]), ("high_pass", [None, 10, 20]), ("elastic_deform", [None, (8, 0.05), (4, 0.1)])]
-# grid_search("exp8", exp8a, prev_results=True, res_file="results.csv")
-# grid_search("exp8", exp8b, prev_results=True, res_file="results.csv")
-
-#%%
-# exp9 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None, 0.5]), ("high_pass", [20]), ("elastic_deform", [(8, 0.05)]), ("normalization", ["(GroupNormalization, 8)", "(GroupNormalization, 16)", "LayerNormalization", "InstanceNormalization", "BatchNormalization"])]
-# grid_search("exp9", exp9, prev_results=True, res_file="results.csv")
-
-# exp10 = [("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-3, 1e-4, 1e-5]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("high_pass", [20]), ("elastic_deform", [(8, 0.05)]), ("normalization", ["(GroupNormalization, 8)"]), ("lr_decay", [True])]
-# grid_search("exp10d", exp10, prev_results=True, res_file="results.csv")
-
-exp11a = [("model_name", ["str('Unet')"]), ("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-4]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("high_pass", [20]), ("elastic_deform", [(8, 0.05)]), ("normalization", ["(GroupNormalization, 8)"]), ("lr_decay", [True]), ("tstimgs", ["str('test (own) - imgs.npy')"]), ("tstmsks", ["str('test (own) - imgs_mask.npy')"]), ("final_test", [True]), ("imgs", ["str('train - imgs.npy')"]), ("msks", ["str('train - imgs_mask.npy')"])]
-grid_search("test - all data", exp11a, prev_results=True, res_file="results.csv")
-exp11b = [("model_name", ["str('Unet')"]), ("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-4]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("high_pass", [20]), ("elastic_deform", [(8, 0.05)]), ("normalization", ["(GroupNormalization, 8)"]), ("lr_decay", [True]), ("tstimgs", ["str('patient test - imgs.npy')"]), ("tstmsks", ["str('patient test - imgs_mask.npy')"]), ("final_test", [True]), ("imgs", ["str('patient - imgs.npy')"]), ("msks", ["str('patient - imgs_mask.npy')"])]
-grid_search("test - patient", exp11a, prev_results=True, res_file="results.csv")
-exp11c = [("model_name", ["str('Unet')"]), ("depth", [4]), ("batch_size", [16]), ("learning_rate", [1e-4]), ("kernel_size", [(5, 5)]), ("start_ch", [32]), ("dropout", [0.4]), ("low_pass", [None]), ("high_pass", [20]), ("elastic_deform", [(8, 0.05)]), ("normalization", ["(GroupNormalization, 8)"]), ("lr_decay", [True]), ("tstimgs", ["str('True test - imgs.npy')"]), ("tstmsks", ["str('True test - imgs_mask.npy')"]), ("final_test", [True]), ("imgs", ["str('True - imgs.npy')"]), ("msks", ["str('True - imgs_mask.npy')"])]
-grid_search("test - true", exp11a, prev_results=True, res_file="results.csv")
-
+##### example 3: final test for 2 normalization techniques on M-net #####
+exp3 = [("model_name", ["exp_name + str('_Mnet')"]), ("model_net", ["Mnet"]), ("batch_size", [16]), ("dropout", [0.2]), ("normalization", ["(GroupNormalization, 8)", "LayerNormalization"]), ("tstimgs", ["str('test (own) - imgs.npy')"]), ("tstmsks", ["str('test (own) - imgs_mask.npy')"]), ("final_test", [True]), ("imgs", ["str('train - imgs.npy')"]), ("msks", ["str('train - imgs_mask.npy')"])]
+grid_search("test_Mnet", exp3)
