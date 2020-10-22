@@ -1,4 +1,6 @@
 from __future__ import print_function
+from sklearn.model_selection import KFold
+from time import time
 
 import os
 
@@ -7,9 +9,6 @@ from tensorflow.keras import backend as K
 from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
-
-from sklearn.model_selection import KFold
-from time import time
 
 from Data import load_data, save_results, image_transformation, print_func, downsample_image
 from Model import Unet, Mnet, eval_Mnet, schedule
@@ -22,7 +21,46 @@ tstimgs = "test (own) - imgs.npy"
 tstmsks = "test (own) - imgs_mask.npy"
 
 
-def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="", model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, up=False, nr_epochs=50, verbosity=1, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False, model_net = Unet, final_test=False, monitor="val_loss"):
+def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="", model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, nr_epochs=50, verbosity=1, up=False, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False, model_net = Unet, final_test=False, monitor="val_loss"):
+    '''
+    DESCRIPTION: Function to load the data, load the model, fit the model and evaluate the model
+    -------
+    INPUTS:
+    data_path:      string, directory of the folder containing the images
+    imgs:           string, name of the npy file containing the images
+    msks:           string, name of the npy file containing the masks
+    tstimgs:        string, name of the npy file containing the test images
+    tstmsks:        string, name of the npy file containing the test masks
+    model_name:     string, name to identify the model
+    save_path:      string, directory of the folder to which to save the results of the callbacks to
+    num_folds:      int, number of folds to use for K-fold cross validation
+    batch_size:     int, batch size to use in fitting the model
+    learning_rate:  float, learning rate to use in compiling the model
+    nr_epochs:      int, number of epochs to use in fitting the model
+    verbosity:      boolean, whether to print the progress of fitting or not
+    up:             boolean, True for using upsampling, False for using Transposed convolution
+    start_ch:       int, the number of filters for the first convolutional layers
+    depth:          int, the number of convolutional layers
+    inc_rate:       number, the factor with which the number of filters is incremented per convolutional layer
+    kernel_size:    int or tuple of 2 integers, the kernel size to be used in the convolution layers  
+    activation:     string, which activation function to use in the convolution layers
+    normalization:  function, normalization function. In case of Groupnormalization a tuple of the function and the desired group size
+    dropout:        float between 0-1, the dropout rate to be used
+    elastic_deform: None or tuple of 2 numbers, (alpha, sigma) with alpha being the scaling factor for the transformation and sigma being the standard deviation for the gaussian convolution
+    low_pass:       None or int, giving the standard deviation used for the gaussian low-pass filter applied to the images
+    high_pass:      None or int, giving the standard deviation used for the gaussian high_pass filter applied to the images
+    prwt:           boolean, whether to apply a prewitt filter to the images or not
+    lr_decay:       boolean, whether to use a scheduled learning rate using the schedule from 'Model.py' or not
+    model_net:      function, which model architecture to use (from Model.py: Unet or Mnet)
+    final_test:     boolean, stating if the model should be optimized (k-fold = 5 folds, validation split is used, no test data is needed) or if the model performance should be tested (in 10 fold, training on all data en testing on test data)
+    monitor:        string, which output of the model to monitor by the callbacks, in case final_test=True it will automaticly be set to "loss"
+    -------
+    OUTPUTS:
+    A .h5 file per fold containing the model with its trained weights
+    A .out file per fold containing the log of the training process in CSV format
+    A .csv file where each row contains the DSC and train time per fold of the model, if there is already a file present the results are appended
+    A .csv file where each row contains the mean and standard deviation of the DSCs and times of all folds of a model, if there is already a file present the results are appended
+    '''
     
     ##### load data and optional test data #####
     print_func('Loading and preprocessing train data...')
