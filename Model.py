@@ -178,7 +178,50 @@ def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, ke
     if compile_model: model.compile(optimizer=SGD(learning_rate, 0.95), loss = dice_coef_loss, metrics=[dice_coef])
     return model
 
-def Mnet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, upconv = True, compile_model =True, learning_rate = 1e-5):
+def level_block_Mnet(i, m, dim, shape, depth, inc, acti, norm, do, up, out):
+    """
+    DESCRIPTION: Recursive function, used to build the M-net structure
+    ----------
+    INPUTS:
+    i:      the input used in the previous layer
+    m:      the previous layers of the model on which to build on
+    dim:    int, the number of filters to be used in the convolution layers
+    shape:  int or tuple of 2 integers, the kernel size to be used in the convolution layers
+    depth:  int, the number of convolutional layers to build
+    inc:    number, the factor with which the number of filters is incremented per convolutional layer
+    acti:   string, which activation function to use in the convolution layers
+    norm:   function, normalization function. In case of Groupnormalization a tuple of the function and the desired group size
+    do:     float between 0-1, the dropout rate to be used
+    up:     boolean, True for using upsampling, False for using Transposed convolution 
+    out:    list with the outputs
+    -------
+    OUTPUTS:
+    m:      the stacked layers of the models
+    out:    updated list of the outputs
+    """
+    
+    if depth > 0:
+        n = conv_block(m, dim, shape, acti, norm, do)
+        m = AveragePooling2D()(n)
+        i = AveragePooling2D()(i)
+        m = Concatenate()([Conv2D(32, shape, activation=acti, padding='same')(i), m])
+        m, out = level_block_Mnet(i, m, int(inc*dim), shape, depth-1, inc, acti, norm, do, up, out)
+        
+        if up:
+            m = UpSampling2D(interpolation='bilinear')(m)
+        else:
+            m = Conv2DTranspose(dim, shape, strides=(2, 2), padding='same')(m)
+        
+        n = Concatenate()([n, m])
+        m = conv_block(n, dim, shape, acti, norm)
+        o = Conv2D(1, (1, 1), activation='sigmoid', name=f"o{len(out)+1-depth}")(UpSampling2D(2**(len(out)-depth))(m))
+        out[-depth] = o                                         
+    else:
+        m = conv_block(m, dim, shape, acti, norm, do)
+    
+    return m, out
+
+def Mnet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, up = True, compile_model =True, learning_rate = 1e-5):
     """
     DESCRIPTION: The M-net model
     ----------
@@ -198,45 +241,19 @@ def Mnet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, ke
     model:          the compiled M-net model
     """
     
-    i1 = Input(shape=img_shape)
-    i2 = AveragePooling2D()(i1)
-    i3 = AveragePooling2D()(i2)
-    i4 = AveragePooling2D()(i3)
+    i = Input(shape=img_shape)
+    out = [None] * depth
+    o, out = level_block_Mnet(i, i, start_ch, kernel_size, depth, inc_rate, activation, normalization, dropout, up, out)
+    model = Model(inputs=i, outputs=out)
     
-    l1 = conv_block(i1, 32, kernel_size, activation, normalization, dropout)
-    n1 = Concatenate()([Conv2D(32, kernel_size, activation=activation, padding='same')(i2),AveragePooling2D()(l1)])
-    l2 = conv_block(n1, 64, kernel_size, activation, normalization, dropout)
-    n2 = Concatenate()([Conv2D(64, kernel_size, activation=activation, padding='same')(i3),AveragePooling2D()(l2)])
-    l3 = conv_block(n2, 128, kernel_size, activation, normalization, dropout)
-    n3 = Concatenate()([Conv2D(128, kernel_size, activation=activation, padding='same')(i4),AveragePooling2D()(l3)])
-    l4 = conv_block(n3, 256, kernel_size, activation, normalization, dropout)
-    n4 = AveragePooling2D()(l4)
-    l5 = conv_block(n4, 512, kernel_size, activation, normalization)
-    
-    m1 = Concatenate()([l4, UpSampling2D(interpolation='bilinear')(l5)])
-    u1 = conv_block(m1, 256, kernel_size, activation, normalization)
-    m2 = Concatenate()([l3, UpSampling2D(interpolation='bilinear')(u1)])
-    u2 = conv_block(m2, 128, kernel_size, activation, normalization)
-    m3 = Concatenate()([l2, UpSampling2D(interpolation='bilinear')(u2)])
-    u3 = conv_block(m3, 64, kernel_size, activation, normalization)
-    m4 = Concatenate()([l1, UpSampling2D(interpolation='bilinear')(u3)])
-    u4 = conv_block(m4, 32, kernel_size, activation, normalization)
-    
-    o4 = Conv2D(out_ch, (1, 1), activation='sigmoid', name='o4')(UpSampling2D(8)(u1))
-    o3 = Conv2D(out_ch, (1, 1), activation='sigmoid', name='o3')(UpSampling2D(4)(u2))
-    o2 = Conv2D(out_ch, (1, 1), activation='sigmoid', name='o2')(UpSampling2D(2)(u3))
-    o1 = Conv2D(out_ch, (1, 1), activation='sigmoid', name='o1')(UpSampling2D(1)(u4))
-    
-    o = [o1, o2, o3, o4]
-    
-    model = Model(inputs=i1, outputs=o)
-
-    losses = {"o1": dice_coef_loss, "o2": dice_coef_loss, "o3": dice_coef_loss, "o4": dice_coef_loss}
-    lossWeights = [1, 1, 1, 1]
+    losses = {}
+    for i in range(depth): losses[f"o{i+1}"] = dice_coef_loss
+    lossWeights = [1] * depth
     
     if compile_model: model.compile(optimizer=Adam(lr=learning_rate), loss = losses, loss_weights=lossWeights, metrics=[dice_coef])
 
     return model
+
 
 def eval_Mnet(test_images, test_masks, model, verbose=0):
     """
