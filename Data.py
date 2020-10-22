@@ -77,22 +77,7 @@ def create_data(data_path, data_name, masks_present = True, save_path = None):
 
 
 def preprocess(imgs):
-    """
-    DESCRIPTION:
-    -----------
-    resize data
-    
-    Parameters
-    ----------
-    imgs : TYPE
-        image data.
 
-    Returns
-    -------
-    imgs_p : TYPE
-        preprocessed data.
-
-    """
     imgs_p = np.ndarray((imgs.shape[0], img_rows, img_cols), dtype=np.uint8)
     for i in range(imgs.shape[0]):
         imgs_p[i] = resize(imgs[i], (img_cols, img_rows), preserve_range=True)
@@ -100,7 +85,7 @@ def preprocess(imgs):
     imgs_p = imgs_p[..., np.newaxis]
     return imgs_p
 
-def load_data(data_path, imgs, msks):
+def load_data(data_path, imgs, msks, low_pass = None, high_pass = None, prwt = False):
     """
     load the saved masks and data
 
@@ -116,6 +101,11 @@ def load_data(data_path, imgs, msks):
     imgs_mask_train = np.load(os.path.join(data_path, msks))
     
     
+    if low_pass is not None or high_pass is not None or prwt: 
+        print_func("Data Augmentation")
+        images, masks = image_transformation(imgs_train, imgs_mask_train, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
+    return imgs_train, imgs_mask_train
+
     imgs_train = preprocess(imgs_train)
     imgs_mask_train = preprocess(imgs_mask_train)
     
@@ -194,11 +184,9 @@ def image_transformation(images, masks, elastic_deform = None, low_pass = None, 
         
         if low_pass is not None: 
             image = gaussian(image, low_pass)
-            mask = gaussian(mask, low_pass)
         
         if high_pass is not None and not prewitt : 
             image = image - gaussian(image, high_pass)
-            mask = mask - gaussian(mask, high_pass)
         
         if prwt:
             image = prewitt(image)

@@ -19,31 +19,26 @@ from Model import Unet, Mnet, eval_Mnet, schedule
 data_path = r"/home/jpavboxtel/data"
 
 data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
-imgs = "test (own) - imgs.npy"
-msks = "test (own) - imgs_mask.npy"
-tstimgs = "test (own) - imgs.npy"
-tstmsks = "test (own) - imgs_mask.npy"
+imgs = "True - imgs.npy"
+msks = "True - imgs_mask.npy"
+tstimgs = "True test - imgs.npy"
+tstmsks = "True test - imgs_mask.npy"
 
 
 def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="", model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, upconv=False, nr_epochs=50, verbosity=1, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False, model_net = Unet, final_test=False, monitor="val_loss"):
     
     print_func('Loading and preprocessing train data...')
     
-    images, masks = load_data(data_path, imgs, msks)
+    images, masks = load_data(data_path, imgs, msks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
     
     if final_test: 
         print_func('Loading and preprocessing test data...')
-        test_images, test_masks = load_data(data_path, tstimgs, tstmsks)
+        test_images, test_masks = load_data(data_path, tstimgs, tstmsks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
         monitor = "loss"
         num_folds = 10
     
     arg_dict_model = {"start_ch": start_ch, "depth": depth, "inc_rate": inc_rate, "kernel_size": kernel_size, "activation": activation, "normalization": normalization, "dropout": dropout, "learning_rate": learning_rate, "upconv": upconv}
-
-    if low_pass is not None or high_pass is not None or prwt: 
-        print_func("Data Augmentation")
-        images, masks = image_transformation(images, masks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
-        if final_test: test_images, test_masks = image_transformation(test_images, test_masks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
-        
+     
     kfold = KFold(n_splits=num_folds, shuffle=True)
     dice_per_fold = [] 
     time_per_fold = []
@@ -62,11 +57,11 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
         model = model_net(**arg_dict_model)
         
         save_dir = save_path + '/' + model_name + " K_" + str(fold_no)
-        model_checkpoint = ModelCheckpoint(save_dir + ' weights.h5', monitor=monitor, save_best_only=True)
+        #model_checkpoint = ModelCheckpoint(save_dir + ' weights.h5', monitor=monitor, save_best_only=True)
         csv_logger = CSVLogger(os.path.join(save_dir + ' log.out'), append=True, separator=';')
         earlystopping = EarlyStopping(monitor = monitor, verbose = 1, min_delta = 0.0001, patience = 5, mode = 'auto', restore_best_weights = True)
         
-        callbacks_list = [csv_logger, model_checkpoint, earlystopping]
+        callbacks_list = [csv_logger, earlystopping] #,model_checkpoint]
         
         if lr_decay:
             lr_schedule = LearningRateScheduler(schedule, verbose = 1)

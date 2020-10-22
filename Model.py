@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Concatenate, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, UpSampling2D, AveragePooling2D, Average
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras import backend as K
 
 import numpy as np
@@ -22,6 +22,12 @@ def dice_coef_pred(y_true, y_pred):
     y_pred_f = y_pred.flatten()
     intersection = np.sum(y_true_f * y_pred_f)
     return (2. * intersection + smooth) / (np.sum(y_true_f) + np.sum(y_pred_f) + smooth)
+
+def precision_pred(y_true, y_pred):
+    y_true_f = y_true.flatten()
+    y_pred_f = y_pred.flatten()
+    intersection = np.sum(y_true_f * y_pred_f)
+    return (intersection + smooth) / (np.sum(y_pred_f) + smooth)
 
 def dice_coef(y_true, y_pred):
     """
@@ -77,7 +83,7 @@ def conv_block(m, dim, shape, acti, norm, do=0):
 def level_block_unet(m, dim, shape, depth, inc, acti, norm, do, up):
     if depth > 0:
         n = conv_block(m, dim, shape, acti, norm, do)
-        m = MaxPooling2D()(n)
+        m = AveragePooling2D()(n)
         m = level_block_unet(m, int(inc*dim), shape, depth-1, inc, acti, norm, do, up)
         
         if up:
@@ -93,36 +99,8 @@ def level_block_unet(m, dim, shape, depth, inc, acti, norm, do, up):
     
     return m
 
-def level_block_mnet(i, m, dim, shape, depth, inc, acti, norm, do, up, out = []):
-    if depth > 0: 
-        i = AveragePooling2D()(i)
-        i_conv = Conv2D(dim, shape, activation=acti, padding='same')(i)
-
-        n = conv_block(m, dim, shape, acti, norm, do)
-        m = AveragePooling2D()(n)
-        m = Concatenate()([i_conv, m])
-        
-        m, out = level_block_mnet(i, m, int(inc*dim), shape, depth-1, inc, acti, norm, do, up, out)
-        
-        if up:
-            m = UpSampling2D(interpolation='bilinear')(m)
-            #m = Conv2D(dim, 2, activation=acti, padding='same')(m)
-        else:
-            m = Conv2DTranspose(dim, shape, strides=(2, 2), padding='same')(m)
-        
-        n = Concatenate()([n, m])
-        m = conv_block(n, dim, shape, acti, norm)
-        o = UpSampling2D(2**(4-depth))(m)
-        o = Conv2D(1, (1, 1), activation = 'sigmoid')(o)
-
-        out.append(o)
-    else:
-        m = conv_block(m, dim, shape, acti, norm, do)
-    
-    return m, out
-
 def schedule(epoch, lr):
-    if epoch > 10: lr = lr/10
+    if epoch in [20, 30]: lr = lr/10
     return lr
 
 def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, upconv = False, compile_model =True, learning_rate = 1e-5):
@@ -131,22 +109,10 @@ def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, ke
     o = Conv2D(out_ch, (1, 1), activation = 'sigmoid')(o)
     model = Model(inputs=i, outputs=o)
     
-    if compile_model: model.compile(optimizer=Adam(lr=learning_rate), loss = dice_coef_loss, metrics=[dice_coef])
-    return model
-
-
-def Mnet_rec(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, upconv = True, compile_model =True, learning_rate = 1e-5):
-    i = Input(shape=img_shape)
-    n, l = level_block_mnet(i, i, start_ch, kernel_size, depth, inc_rate, activation, normalization, dropout, upconv)      
-    o = Average()(l)
-    model = Model(inputs=i, outputs=l[0])
-
-    if compile_model: model.compile(optimizer=Adam(lr=learning_rate), loss = dice_coef_loss, metrics=[dice_coef])
-
+    if compile_model: model.compile(optimizer=SGD(learning_rate, 0.95), loss = dice_coef_loss, metrics=[dice_coef])
     return model
 
 def Mnet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, kernel_size = (3, 3), activation='relu', normalization=None, dropout=0, upconv = True, compile_model =True, learning_rate = 1e-5):
-  
     i1 = Input(shape=img_shape)
     i2 = AveragePooling2D()(i1)
     i3 = AveragePooling2D()(i2)
