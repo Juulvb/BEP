@@ -1,10 +1,8 @@
 """
-this script contains the following functions: 
-create_data: to create the appropriate .npy files from the kaggle US nerve segmentation dataset
-
-
+author: 
+    J.P.A. van Boxtel
+    j.p.a.v.boxtel@student.tue.nl
 """
-
 from __future__ import print_function
 
 import os
@@ -18,11 +16,6 @@ from skimage.filters import gaussian, prewitt
 
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
-
-img_rows = 96
-img_cols = 96
-
-################################################################################
 
 def create_data(data_path, data_name, masks_present = True, save_path = None, image_rows = 420, image_cols = 580):
     """
@@ -252,7 +245,7 @@ def save_results(model_name, dice, time, elab=True, file_total = 'results.csv', 
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
             file.close()
 
-def downsample_image(images, n):
+def downsample_image(images, n, img_cols = 96, img_rows = 96):
     """
     DESCRIPTION: helper function to prepare the data for M-net
     -------
