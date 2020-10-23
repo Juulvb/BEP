@@ -3,6 +3,7 @@ author:
     J.P.A. van Boxtel
     j.p.a.v.boxtel@student.tue.nl
 """
+
 from __future__ import print_function
 
 import os
@@ -17,7 +18,7 @@ from skimage.filters import gaussian, prewitt
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 
-def create_data(data_path, data_name, masks_present = True, save_path = None, image_rows = 420, image_cols = 580):
+def create_data(data_path, data_name, masks_present = True, save_path = None, image_rows=420, image_cols=580):
     """
     DESCRIPTION: read data and masks, save them in seperate npy files
     -------
@@ -120,7 +121,7 @@ def image_transformation(images, masks, elastic_deform = None, low_pass = None, 
     1 numpy array containing all processed images
     1 numpy array containing all processed masks
     """ 
-
+    
     im_tr = []
     msk_tr = []
     for i in range(len(images)):
@@ -166,7 +167,7 @@ def reshape_imgs(imgs, img_rows, img_cols):
     imgs_p = imgs_p[..., np.newaxis]
     return imgs_p
 
-def load_data(data_path, imgs, msks, img_rows=96, img_cols=96, low_pass = None, high_pass = None, prwt = False):
+def load_data(data_path, imgs, msks, low_pass = None, high_pass = None, prwt = False, img_cols=96, img_rows=96):
     """
     DESCRIPTION:load the saved masks and data
     -------
@@ -190,14 +191,15 @@ def load_data(data_path, imgs, msks, img_rows=96, img_cols=96, low_pass = None, 
     
     
     if low_pass is not None or high_pass is not None or prwt: 
-        print_func("Data Augmentation")
-        imgs_train, imgs_mask_train = image_transformation(imgs_train, imgs_mask_train, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
-
+        print_func("Data Preprocessing")
+        images, masks = image_transformation(imgs_train, imgs_mask_train, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
+    
+    print_func(f"Reshape images to shape {img_rows}x{img_cols}")
     imgs_train = reshape_imgs(imgs_train, img_rows, img_cols)
     imgs_mask_train = reshape_imgs(imgs_mask_train, img_rows, img_cols)
     
     ###### data normalization ##########
-    
+    print_func("Data normalization")
     imgs_train = imgs_train.astype('float32')
     mean = np.mean(imgs_train)  # mean for data centering
     std = np.std(imgs_train)  # std for data normalization
@@ -245,7 +247,7 @@ def save_results(model_name, dice, time, elab=True, file_total = 'results.csv', 
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
             file.close()
 
-def downsample_image(images, n, img_cols = 96, img_rows = 96):
+def downsample_image(images, n, img_rows = 96, img_cols = 96):
     """
     DESCRIPTION: helper function to prepare the data for M-net
     -------
@@ -256,6 +258,7 @@ def downsample_image(images, n, img_cols = 96, img_rows = 96):
     OUTPUTS:
     l: dictionary of n+1 keys and values, containing the original masks and each next element the downsampled by factor 2 version
     """
+    
     l = {}
     l["o1"] = images
     for i in range(n):
@@ -266,7 +269,10 @@ def downsample_image(images, n, img_cols = 96, img_rows = 96):
             arr[j] = resize(ds, (img_cols, img_rows, 1), preserve_range=True)
         l[f"o{i+2}"] = arr
     return l
-                        
+                
+
+
+        
 def print_func(str_in, c = '-', n=50):
     """
     DESCRIPTION: helper function to print information clearly in filled consoles
@@ -279,6 +285,7 @@ def print_func(str_in, c = '-', n=50):
     OUTPUTS:
     prints the input information with a leading and closing line of n seperator characters
     """
+    
     print(c*n)
     print(str_in)
     print(c*n)
