@@ -87,7 +87,7 @@ def schedule(epoch, lr):
     lr:     the new learning rate
     """
     
-    if epoch in [20, 30]: lr = lr/10
+    if epoch in [10, 20, 30]: lr = lr/10
     return lr
 
 def conv_block(m, dim, shape, acti, norm, do=0):
@@ -175,7 +175,7 @@ def Unet(img_shape = (96, 96, 1), out_ch=1, start_ch=32, depth=4, inc_rate=2, ke
     o = Conv2D(out_ch, (1, 1), activation = 'sigmoid')(o)
     model = Model(inputs=i, outputs=o)
     
-    if compile_model: model.compile(optimizer=SGD(learning_rate, 0.95), loss = dice_coef_loss, metrics=[dice_coef])
+    if compile_model: model.compile(optimizer=Adam(lr=learning_rate), loss = dice_coef_loss, metrics=[dice_coef])
     return model
 
 def level_block_Mnet(i, m, dim, shape, depth, inc, acti, norm, do, up, out):

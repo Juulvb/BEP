@@ -21,7 +21,7 @@ tstimgs = "test (own) - imgs.npy"
 tstmsks = "test (own) - imgs_mask.npy"
 
 
-def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="", model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, nr_epochs=50, verbosity=1, up=False, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False, model_net = Unet, final_test=False, monitor="val_loss"):
+def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="", model_name="model", save_path = "models", num_folds=5, batch_size=32, learning_rate=1e-5, nr_epochs=50, verbosity=1, up=False, start_ch=32, depth=4, inc_rate=2, kernel_size=(3, 3), activation='relu', normalization=None, dropout=0, elastic_deform = None, low_pass = None, high_pass = None, prwt = False, lr_decay = False, lr_schedule=None, model_net = Unet, final_test=False, monitor="val_loss"):
     '''
     DESCRIPTION: Function to load the data, load the model, fit the model and evaluate the model
     -------
@@ -51,6 +51,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
     high_pass:      None or int, giving the standard deviation used for the gaussian high_pass filter applied to the images
     prwt:           boolean, whether to apply a prewitt filter to the images or not
     lr_decay:       boolean, whether to use a scheduled learning rate using the schedule from 'Model.py' or not
+    lr_schedule:    function, the schedule to be used for the learning rate
     model_net:      function, which model architecture to use (from Model.py: Unet or Mnet)
     final_test:     boolean, stating if the model should be optimized (k-fold = 5 folds, validation split is used, no test data is needed) or if the model performance should be tested (in 10 fold, training on all data en testing on test data)
     monitor:        string, which output of the model to monitor by the callbacks, in case final_test=True it will automaticly be set to "loss"
@@ -108,8 +109,8 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
         
         
         if lr_decay:
-            lr_schedule = LearningRateScheduler(schedule, verbose = 1)
-            callbacks_list.append(lr_schedule)
+            lr_sched = LearningRateScheduler(schedule, verbose = 1) if lr_schedule is None else LearningRateScheduler(lr_schedule, verbose = 1) 
+            callbacks_list.append(lr_sched)
         
         ##### fit model #####
         arg_dict_fit = {"x": train_im, "y": train_msk, "validation_data": (val_im, val_msk), "batch_size": batch_size, "epochs": nr_epochs, "verbose": verbosity, "shuffle": True}
