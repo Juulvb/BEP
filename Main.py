@@ -74,6 +74,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
     if final_test: 
         print_func('Test Data:')
         test_images, test_masks = load_data(data_path, tstimgs, tstmsks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
+        if model_net == Mnet: test_masks = downsample_image(test_masks, depth-1)
         monitor = "loss"
         num_folds = 10
     
@@ -88,11 +89,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
     for train, val in kfold.split(images, masks):
         print_func(f'Training for fold {fold_no} (of {num_folds}) ... \nModel name: {model_name}')
         
-        ##### prepare datasets #####
-        if not final_test: #seperate data into train and validation set according to k-fold
-            train_im, train_msk, val_im, val_msk = images[train], masks[train], images[val], masks[val] 
-        else: #use all train data (no validation set) and test on test data
-            train_im, train_msk, val_im, val_msk = images, masks, test_images, test_masks 
+        train_im, train_msk, val_im, val_msk = images[train], masks[train], images[val], masks[val]  
         
         if elastic_deform is not None: train_im, train_msk = image_transformation(train_im, train_msk, elastic_deform)
         
@@ -100,6 +97,7 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
             print_func("prepare data for Mnet")
             train_msk = downsample_image(train_msk, depth-1)
             val_msk = downsample_image(val_msk, depth-1)
+
         
         ##### load model with random initialized weights ######
         model = model_net(**arg_dict_model)
@@ -118,12 +116,12 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
         
         ##### fit model #####
         arg_dict_fit = {"x": train_im, "y": train_msk, "validation_data": (val_im, val_msk), "batch_size": batch_size, "epochs": nr_epochs, "verbose": verbosity, "shuffle": True}
-        if final_test: del arg_dict_fit["validation_data"]
         
         start_time = time()
         model.fit(callbacks=callbacks_list, **arg_dict_fit)
         train_time = int(time()-start_time)
         
+        if final_test: val_im, val_msk = test_images, test_masks        
         ##### evaluate model #####
         if model_net == Mnet:
             scores = eval_Mnet(val_im, val_msk['o1'], model, verbose=1)
