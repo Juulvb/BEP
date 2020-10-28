@@ -3,15 +3,20 @@ from sklearn.model_selection import KFold
 from time import time
 
 import os
+import copy
+import pandas as pd
+import numpy as np
 
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from tensorflow.keras import backend as K
-from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, CSVLogger, LearningRateScheduler
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization
+from tensorflow.keras.models import model_from_json
+from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
+
 K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
-from Data import load_data, save_results, image_transformation, print_func, downsample_image
-from Model import Unet, Mnet, eval_Mnet, schedule
+from Data import load_data, save_results, image_transformation, print_func, downsample_image, post_process_openingbyreconstruction, post_process_thresholding, post_process_smoothingedges
+from Model import Unet, Mnet, eval_Mnet, schedule, dice_coef_pred
 
 
 data_path = r"C:\Users\20164798\OneDrive - TU Eindhoven\UNI\BMT 3\BEP\data\prepared"
@@ -64,11 +69,10 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
     '''
     
     ##### load data and optional test data #####
-    print_func('Loading and preprocessing train data...')
     images, masks = load_data(data_path, imgs, msks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
     
     if final_test: 
-        print_func('Loading and preprocessing test data...')
+        print_func('Test Data:')
         test_images, test_masks = load_data(data_path, tstimgs, tstmsks, low_pass=low_pass, high_pass=high_pass, prwt=prwt)
         monitor = "loss"
         num_folds = 10
@@ -135,10 +139,58 @@ def train_model(data_path=data_path, imgs=imgs, msks=msks, tstimgs="", tstmsks="
         fold_no += 1 
     
     ##### save scores of model #####
-    save_results(model_name, dice_per_fold, time_per_fold, False) 
+    save_results(model_name, dice_per_fold, time_per_fold, False)  
 
+def post_process(model_file, weights_path, data_path, imgs, msks, model_name = "", n = 10, m = False, low_pass = None, high_pass = None, threshold=0.95, disk_size=5, smooth_sigma=1, smooth_trsh=0.5):
+    
+    images, masks = load_data(data_path, imgs, msks, low_pass=low_pass, high_pass=high_pass)
+    
+    json_file = open(model_file, 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    model = model_from_json(loaded_model_json)
+    
+    weights = os.listdir(weights_path)
+    weights = [weight for weight in weights if weight.find(".h5")>-1]
+    
+    scores = pd.DataFrame()    
+    
+    for weight in weights:
+        model.load_weights(os.path.join(weights_path, weight))
+
+        predictions = model.predict(images[:n], verbose=1)
+        if m: predictions = sum(predictions)/len(predictions)
+        sc0 = np.mean(list(map(dice_coef_pred, masks[:n], predictions)))
+        
+        pp1, sc1 = [], []
+        if type(threshold) != list: threshold = [threshold]
+        for trsh in threshold: pp1.append(post_process_thresholding(copy.copy(predictions), trsh))
+        for res in pp1: sc1.append(np.mean(list(map(dice_coef_pred, masks[:n], res))))
+        max_idx1 = sc1.index(max(sc1))
+        
+        pp2, sc2 = [], []
+        if type(disk_size) != list: disk_size = [disk_size]
+        for ds in disk_size: pp2.append(post_process_openingbyreconstruction(copy.copy(pp1[max_idx1]), ds))
+        for res in pp2: sc2.append(np.mean(list(map(dice_coef_pred, masks[:n], res))))
+        max_idx2 = sc2.index(max(sc2))
+        
+        pp3, sc3 = [], []
+        if type(smooth_sigma) != list: smooth_sigma = [smooth_sigma]
+        if type(smooth_trsh) != list: smooth_trsh = [smooth_trsh]
+        for ss in smooth_sigma: 
+            for st in smooth_trsh: pp3.append(post_process_smoothingedges(copy.copy(pp2[max_idx2]), ss, st))
+        for res in pp3: sc3.append(np.mean(list(map(dice_coef_pred, masks[:n], res))))        
+        
+        scores = scores.append([[sc0, *sc1, *sc2, *sc3]], ignore_index=True)        
+
+    for key, value in scores.iteritems():
+        m_name = model_name + '.'
+        if key>0 and key<=len(threshold): m_name = m_name + "trsh" + str(threshold[key-1])
+        elif key>len(threshold) and key<=len(threshold)+len(disk_size): m_name = m_name + "disk" + str(disk_size[key-1-len(threshold)])
+        elif key>len(threshold)+len(disk_size):m_name + "smooth_sigma" + str(key-1-len(threshold)-len(disk_size))
+        save_results(m_name, value, 0, False)
+   
     
 if __name__ == '__main__':
     result = train_model()
-    
     

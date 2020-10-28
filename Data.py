@@ -10,10 +10,12 @@ import os
 import numpy as np
 import csv
 import random
+import copy
 
 from skimage.io import imread
 from skimage.transform import resize, downscale_local_mean
 from skimage.filters import gaussian, prewitt
+from skimage.morphology import disk, binary_opening, reconstruction, erosion
 
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
@@ -185,7 +187,7 @@ def load_data(data_path, imgs, msks, low_pass = None, high_pass = None, prwt = F
     imgs_train:         numpy array with the preprocessed, reshaped, mean-centered, normalized images
     imgs_mask_train:    numpy array with the reshaped, normalized masks
     """
-    
+    print_func('Loading Data')
     imgs_train = np.load(os.path.join(data_path, imgs))
     imgs_mask_train = np.load(os.path.join(data_path, msks))
     
@@ -214,6 +216,54 @@ def load_data(data_path, imgs, msks, low_pass = None, high_pass = None, prwt = F
     
     return imgs_train, imgs_mask_train
 
+def downsample_image(images, n, img_rows = 96, img_cols = 96):
+    """
+    DESCRIPTION: helper function to prepare the data for M-net
+    -------
+    INPUTS:
+    images: numpy array, all masks that need to be downsampled 
+    n:      int, number of time the input needs to be downsampled (by factor 2)
+    -------
+    OUTPUTS:
+    l: dictionary of n+1 keys and values, containing the original masks and each next element the downsampled by factor 2 version
+    """
+    
+    l = {}
+    l["o1"] = images
+    for i in range(n):
+        factor = 2**(i+1)
+        arr = np.empty((len(images), images.shape[1], images.shape[2], images.shape[3]))
+        for j in range(len(images)):
+            ds = downscale_local_mean(images[j], (factor, factor, 1))
+            arr[j] = resize(ds, (img_cols, img_rows, 1), preserve_range=True)
+        l[f"o{i+2}"] = arr
+    return l
+                
+def post_process_thresholding(results, threshold=0.95):
+    results = (results>threshold)*1
+    return results
+
+def post_process_openingbyreconstruction(results, disk_size=5):
+    kernel = disk(disk_size)
+    if len(results.shape) == 3: results = np.expand_dims(results, axis=0)
+    results_new = []
+    for result in results:
+        res = copy.copy(result[:,:,0])
+        res = erosion(res, kernel)
+        res = reconstruction(res, result[:,:,0])
+        result[:,:,0] = res
+        results_new.append(result)
+    return np.array(results_new)
+
+def post_process_smoothingedges(results, sigma=1, threshold=0.5):
+    if len(results.shape) == 3: results = np.expand_dims(results, axis=0)
+    results_new = []
+    for result in results:
+        result[:,:,0] = gaussian(copy.copy(result[:,:,0]), sigma)
+        results_new.append(result)
+        
+    results_new = (np.array(results_new)>threshold)*1
+    return results_new
 
 def save_results(model_name, dice, time, elab=True, file_total = 'results.csv', file_elab = 'results elaborate.csv'):
     """
@@ -247,29 +297,6 @@ def save_results(model_name, dice, time, elab=True, file_total = 'results.csv', 
             writer.writerow([model_name, np.mean(dice), np.std(dice), np.mean(time), np.std(time)])
             file.close()
 
-def downsample_image(images, n, img_rows = 96, img_cols = 96):
-    """
-    DESCRIPTION: helper function to prepare the data for M-net
-    -------
-    INPUTS:
-    images: numpy array, all masks that need to be downsampled 
-    n:      int, number of time the input needs to be downsampled (by factor 2)
-    -------
-    OUTPUTS:
-    l: dictionary of n+1 keys and values, containing the original masks and each next element the downsampled by factor 2 version
-    """
-    
-    l = {}
-    l["o1"] = images
-    for i in range(n):
-        factor = 2**(i+1)
-        arr = np.empty((len(images), images.shape[1], images.shape[2], images.shape[3]))
-        for j in range(len(images)):
-            ds = downscale_local_mean(images[j], (factor, factor, 1))
-            arr[j] = resize(ds, (img_cols, img_rows, 1), preserve_range=True)
-        l[f"o{i+2}"] = arr
-    return l
-                
 
 
         
