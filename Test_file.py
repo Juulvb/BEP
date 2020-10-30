@@ -10,13 +10,14 @@ Created on Thu Sep 10 08:42:34 2020
 
 @author: 20164798
 """
-from Main import train_model
+from Main import train_model, post_process
 from Data import save_results, print_func
 from Model import Unet, Mnet
 from itertools import product
 import random
 import pandas as pd
 import os
+from os.path import join as opj
 
 from tensorflow_addons.layers import InstanceNormalization, GroupNormalization, WeightNormalization
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization
@@ -24,6 +25,8 @@ from tensorflow.keras.layers import BatchNormalization, LayerNormalization
 
 data_path = r"/home/jpavboxtel/data"
 save_path = r"/home/jpavboxtel/code/models_Mnet"
+weights_path = r"/home/jpavboxtel/code/final_weights"
+
 if not os.path.exists(save_path): os.mkdir(save_path)
 
 imgs = "train - imgs.npy"
@@ -165,3 +168,6 @@ grid_search("exp2", exp2, prev_results=True, res_file="results.csv")
 ##### example 3: final test for 2 normalization techniques on M-net #####
 exp3 = [("model_name", ["exp_name + str('_Mnet')"]), ("model_net", ["Mnet"]), ("batch_size", [16]), ("dropout", [0.2]), ("normalization", ["(GroupNormalization, 8)", "LayerNormalization"]), ("tstimgs", ["str('test (own) - imgs.npy')"]), ("tstmsks", ["str('test (own) - imgs_mask.npy')"]), ("final_test", [True]), ("imgs", ["str('train - imgs.npy')"]), ("msks", ["str('train - imgs_mask.npy')"])]
 grid_search("test_Mnet", exp3)
+
+##### example 4: testing for post-processing techniques #####
+post_process(opj(weights_path,"Mnet_optimized/model_Mnet.json"), opj(weights_path, "Mnet_optimized/All"), data_path, imgs, msks, m=True, threshold=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], disk_size=[2, 3, 4, 5, 6, 7], low_pass = 1, high_pass = 10, smooth_sigma = [0.5, 1, 2, 3], smooth_trsh = [0.3, 0.5, 0.7, 0.9], model_name = "model_Mnet_")

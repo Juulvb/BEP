@@ -259,7 +259,8 @@ def post_process_smoothingedges(results, sigma=1, threshold=0.5):
     if len(results.shape) == 3: results = np.expand_dims(results, axis=0)
     results_new = []
     for result in results:
-        result[:,:,0] = gaussian(copy.copy(result[:,:,0]), sigma)
+        result = gaussian(result, sigma)
+        if np.max(result)>0: result = result * 1/np.max(result)
         results_new.append(result)
         
     results_new = (np.array(results_new)>threshold)*1
